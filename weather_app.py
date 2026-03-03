@@ -195,18 +195,19 @@ def fetch_weather_for_year(prec_no, block_no, year, month, day):
                         return float(s)
                     except:
                         return None
-                # 気象庁daily_s1 列順:
-                # 0:日 1:降水量合計 2:最大1時間降水量 3:最大10分間降水量
-                # 4:平均気温 5:最高気温 6:最低気温
-                # 7:平均風速 8:最大風速 9:最大風向 10:最大瞬間風速
+                # 気象庁daily_s1 実際の列順（主要観測所）:
+                # 0:日 1:気圧(現地) 2:気圧(海面) 3:降水量合計
+                # 4:最大1時間降水量 5:最大10分間降水量
+                # 6:平均気温 7:最高気温 8:最低気温
+                # 9:平均風速 10:最大風速 11:最大風向 12:最大瞬間風速
                 return {
-                    "precip": safe_float(texts[1]) if len(texts) > 1 else None,
-                    "rain_1h_max": safe_float(texts[2]) if len(texts) > 2 else None,
-                    "temp_avg": safe_float(texts[4]) if len(texts) > 4 else None,
-                    "temp_max": safe_float(texts[5]) if len(texts) > 5 else None,
-                    "temp_min": safe_float(texts[6]) if len(texts) > 6 else None,
-                    "wind_avg": safe_float(texts[7]) if len(texts) > 7 else None,
-                    "wind_max": safe_float(texts[8]) if len(texts) > 8 else None,
+                    "precip": safe_float(texts[3]) if len(texts) > 3 else None,
+                    "rain_1h_max": safe_float(texts[4]) if len(texts) > 4 else None,
+                    "temp_avg": safe_float(texts[6]) if len(texts) > 6 else None,
+                    "temp_max": safe_float(texts[7]) if len(texts) > 7 else None,
+                    "temp_min": safe_float(texts[8]) if len(texts) > 8 else None,
+                    "wind_avg": safe_float(texts[9]) if len(texts) > 9 else None,
+                    "wind_max": safe_float(texts[10]) if len(texts) > 10 else None,
                     "_raw": texts,
                 }
         return None
