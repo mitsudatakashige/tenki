@@ -23,8 +23,28 @@ from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 
 pdfmetrics.registerFont(UnicodeCIDFont("HeiseiKakuGo-W5"))
 FONT = "HeiseiKakuGo-W5"
-rcParams["font.family"] = "sans-serif"
-rcParams["font.sans-serif"] = ["Hiragino Sans", "IPAGothic", "DejaVu Sans"]
+import os
+import urllib.request
+
+# 日本語フォントをダウンロードして設定
+_font_path = "/tmp/NotoSansJP-Regular.ttf"
+if not os.path.exists(_font_path):
+    try:
+        urllib.request.urlretrieve(
+            "https://github.com/google/fonts/raw/main/ofl/notosansjp/NotoSansJP%5Bwght%5D.ttf",
+            _font_path
+        )
+    except:
+        pass
+
+from matplotlib import font_manager as _fm
+if os.path.exists(_font_path):
+    _fm.fontManager.addfont(_font_path)
+    _prop = _fm.FontProperties(fname=_font_path)
+    rcParams["font.family"] = _prop.get_name()
+else:
+    rcParams["font.family"] = "sans-serif"
+    rcParams["font.sans-serif"] = ["Hiragino Sans", "IPAGothic", "DejaVu Sans"]
 
 # 主要気象観測所リスト（station_id, 名称, 都道府県, lat, lon）
 STATIONS = [
