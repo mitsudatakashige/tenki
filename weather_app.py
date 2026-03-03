@@ -221,12 +221,14 @@ def analyze_data(records):
     if n == 0:
         return None
 
-    # 降雨（precip=Noneの年はデータなしとして除外）
+    # 降雨（24時間合計）
     precips = [(r["precip"] if r["precip"] is not None else 0.0) for r in valid]
     rain_days = sum(1 for p in precips if p >= 1.0)
     rain_0 = sum(1 for p in precips if p < 1.0)
     rain_1_10 = sum(1 for p in precips if 1.0 <= p < 10.0)
     rain_10plus = sum(1 for p in precips if p >= 10.0)
+    precip_max = round(max(precips), 1) if precips else None
+    precip_avg_rain = round(sum(p for p in precips if p >= 1.0) / max(sum(1 for p in precips if p >= 1.0), 1), 1)
 
     # 1時間最大雨量
     rain_1h_list = [r["rain_1h_max"] for r in valid if r.get("rain_1h_max") is not None]
@@ -252,6 +254,8 @@ def analyze_data(records):
         "rain_10plus": rain_10plus,
         "precip_n": len(precips),
         "precips": precips,
+        "precip_max": precip_max,
+        "precip_avg_rain": precip_avg_rain,
         "rain_1h_list": rain_1h_list,
         "rain_1h_max": mx(rain_1h_list),
         "rain_1h_avg": avg(rain_1h_list),
@@ -573,13 +577,30 @@ if st.session_state.get("weather_result"):
         st.markdown("### ① 降雨")
         rain_label, rain_color = rain_risk_label(result["rain_days"], result["n"])
         st.markdown(f"**判定：** :{rain_color}[{rain_label}]")
-        col1, col2 = st.columns(2)
+
+        st.markdown("**📅 24時間降水量**")
+        col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("雨だった日数", f"{result['rain_days']} / {result['n']}年")
+        with col2:
+            st.metric("最大降水量", f"{result['precip_max']} mm" if result['precip_max'] else "―")
+        with col3:
+            st.metric("雨の日の平均降水量", f"{result['precip_avg_rain']} mm" if result['rain_days'] > 0 else "―")
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
             st.metric("雨なし (<1mm)", f"{result['rain_0']}回")
         with col2:
             st.metric("小雨 (1〜10mm)", f"{result['rain_1_10']}回")
+        with col3:
             st.metric("大雨 (10mm以上)", f"{result['rain_10plus']}回")
+
+        st.markdown("**🌧️ 最大1時間雨量**")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("最大1時間雨量（最大値）", f"{result['rain_1h_max']} mm" if result['rain_1h_max'] else "―", help="過去の最悪ケース")
+        with col2:
+            st.metric("最大1時間雨量（平均）", f"{result['rain_1h_avg']} mm" if result['rain_1h_avg'] else "―")
         precip_buf = make_precip_chart(result)
         st.image(precip_buf, use_container_width=True)
         st.session_state["precip_buf"] = precip_buf
