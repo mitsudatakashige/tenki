@@ -256,20 +256,26 @@ def make_precip_chart(result):
 
 def make_temp_chart(result):
     records = result["records"]
-    years = list(range(len(records)))
-    temp_maxs = [r["temp_max"] for r in records if r["temp_max"] is not None]
-    temp_mins = [r["temp_min"] for r in records if r["temp_min"] is not None]
-    temp_avgs = [r["temp_avg"] for r in records if r["temp_avg"] is not None]
+    # None除外しつつインデックスも揃える
+    data = [(i, r["temp_max"], r["temp_min"], r["temp_avg"]) 
+            for i, r in enumerate(records)
+            if r["temp_max"] is not None and r["temp_min"] is not None]
+    if not data:
+        return None
+    xs = [d[0] for d in data]
+    temp_maxs = [d[1] for d in data]
+    temp_mins = [d[2] for d in data]
+    temp_avgs = [d[3] for d in data if d[3] is not None]
 
     fig, ax = plt.subplots(figsize=(7, 4))
-    xs = range(len(temp_maxs))
-    ax.fill_between(xs, temp_mins[:len(xs)], temp_maxs[:len(xs)], alpha=0.2, color="#FF7043", label="気温幅")
+    ax.fill_between(xs, temp_mins, temp_maxs, alpha=0.2, color="#FF7043", label="気温幅")
     ax.plot(xs, temp_maxs, "o-", color="#E53935", label=f"最高気温 (平均{result['temp_max_mean']}℃)", linewidth=2)
     ax.plot(xs, temp_mins, "o-", color="#1E88E5", label=f"最低気温 (平均{result['temp_min_mean']}℃)", linewidth=2)
-    ax.plot(xs, temp_avgs[:len(xs)], "o--", color="#43A047", label=f"平均気温 (平均{result['temp_avg_mean']}℃)", linewidth=1.5)
-    ax.set_xticks(range(len(records)))
+    if len(temp_avgs) == len(xs):
+        ax.plot(xs, temp_avgs, "o--", color="#43A047", label=f"平均気温 (平均{result['temp_avg_mean']}℃)", linewidth=1.5)
+    ax.set_xticks(xs)
     current_year = datetime.datetime.now().year
-    ax.set_xticklabels([str(current_year - len(records) + i + 1) for i in range(len(records))], fontsize=8)
+    ax.set_xticklabels([str(current_year - len(records) + i + 1) for i in xs], fontsize=8)
     ax.set_ylabel("気温 (℃)", fontsize=10)
     ax.set_title("過去の気温推移", fontsize=12, fontweight="bold")
     ax.legend(fontsize=8, loc="best")
