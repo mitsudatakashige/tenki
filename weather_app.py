@@ -249,6 +249,48 @@ def find_nearest_station_master(lat, lon, stations):
     return best_name, stations[best_name]
 
 
+def fetch_amedas_daily(amedas_code, year, month, day):
+    """アメダスAPIから指定日の降水量を取得"""
+    try:
+        date_str = f"{year}{month:02d}{day:02d}"
+        # 3時間ごとのデータファイルを取得（00,03,06,09,12,15,18,21時）
+        total_precip = 0.0
+        has_data = False
+        for hour in ["000000", "030000", "060000", "090000", "120000", "150000", "180000", "210000"]:
+            url = f"https://www.jma.go.jp/bosai/amedas/data/point/{amedas_code}/{date_str}_{hour}.json"
+            try:
+                r = requests.get(url, timeout=8, headers={"User-Agent": "Mozilla/5.0"})
+                if r.status_code != 200:
+                    continue
+                data = r.json()
+                # 各時刻の降水量を積算
+                for time_key, vals in data.items():
+                    if "precipitation1h" in vals:
+                        p = vals["precipitation1h"]
+                        if isinstance(p, list) and len(p) > 0:
+                            try:
+                                total_precip += float(p[0])
+                                has_data = True
+                            except:
+                                pass
+            except:
+                continue
+        if has_data:
+            return {
+                "precip": round(total_precip, 1),
+                "rain_1h_max": None,
+                "temp_avg": None,
+                "temp_max": None,
+                "temp_min": None,
+                "wind_avg": None,
+                "wind_max": None,
+                "_raw": [],
+            }
+        return None
+    except Exception as e:
+        return None
+
+
 def fetch_weather_for_year(prec_no, block_no, year, month, day):
     url = (f"https://www.data.jma.go.jp/obd/stats/etrn/view/daily_s1.php"
            f"?prec_no={prec_no}&block_no={block_no}&year={year}&month={month}&view=p1")
@@ -643,18 +685,19 @@ if st.button("🔍 気象データを集計する", type="primary", use_containe
         block_no = station_info.get("block_no")
         amedas_code = station_info.get("amedas_code")
 
-        # アメダスのみの場合はprec_no/block_noが取れない
-        if not prec_no or not block_no:
-            msg = f"{station_name}はアメダス専用観測所のため、過去データの取得に対応していません。近くの主要観測所（濃い青丸）を選択してください。"
-            st.error(msg)
-            st.stop()
+        is_amedas = (not prec_no or not block_no) and amedas_code
+        if is_amedas:
+            st.info("アメダス観測所のため降水量のみ集計します。気温・風速は主要観測所（濃い青丸）で取得できます。")
 
         records = []
         progress = st.progress(0, text="データ取得中...")
         errors = []
         for i, yr in enumerate(range(sel_year - years_back, sel_year)):
             progress.progress((i+1)/years_back, text=f"{yr}年のデータを取得中...")
-            rec = fetch_weather_for_year(prec_no, block_no, yr, sel_month, sel_day)
+            if is_amedas:
+                rec = fetch_amedas_daily(amedas_code, yr, sel_month, sel_day)
+            else:
+                rec = fetch_weather_for_year(prec_no, block_no, yr, sel_month, sel_day)
             records.append(rec)
             if rec is None:
                 errors.append(yr)
