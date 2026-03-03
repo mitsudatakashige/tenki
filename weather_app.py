@@ -404,13 +404,23 @@ def create_pdf(station_name, target_date, result, precip_buf, temp_buf, wind_buf
     c.append(Spacer(1, 2*mm))
     rain_label, _ = rain_risk_label(result["rain_days"], result["n"])
     c.append(Paragraph(f"判定：{rain_label}", bs))
+    c.append(Spacer(1, 2*mm))
+    c.append(Paragraph("【24時間降水量】", bs))
     rows = [["項目", "値"],
             ["雨だった日数", f"{result['rain_days']}回 / {result['n']}年"],
+            ["最大降水量", f"{result['precip_max']} mm" if result.get('precip_max') else "―"],
+            ["雨の日の平均降水量", f"{result['precip_avg_rain']} mm" if result['rain_days'] > 0 else "―"],
             ["雨なし（<1mm）", f"{result['rain_0']}回"],
             ["小雨（1〜10mm）", f"{result['rain_1_10']}回"],
             ["大雨（10mm以上）", f"{result['rain_10plus']}回"]]
     t = Table(rows, colWidths=[80*mm, 80*mm]); t.setStyle(tbl_style)
     c.append(t); c.append(Spacer(1, 3*mm))
+    c.append(Paragraph("【最大1時間雨量】", bs))
+    rows2 = [["項目", "値"],
+             ["最大1時間雨量（最大値）", f"{result['rain_1h_max']} mm" if result.get('rain_1h_max') else "―"],
+             ["最大1時間雨量（平均）", f"{result['rain_1h_avg']} mm" if result.get('rain_1h_avg') else "―"]]
+    t2 = Table(rows2, colWidths=[80*mm, 80*mm]); t2.setStyle(tbl_style)
+    c.append(t2); c.append(Spacer(1, 3*mm))
     if precip_buf:
         precip_buf.seek(0)
         c.append(RLImage(precip_buf, width=100*mm, height=60*mm))
