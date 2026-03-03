@@ -199,15 +199,15 @@ def fetch_weather_for_year(prec_no, block_no, year, month, day):
                 # 0:日 1:気圧(現地) 2:気圧(海面) 3:降水量合計
                 # 4:最大1時間降水量 5:最大10分間降水量
                 # 6:平均気温 7:最高気温 8:最低気温
-                # 9:平均風速 10:最大風速 11:最大風向 12:最大瞬間風速
+                # 9:湿度(平均) 10:蒸気圧 11:平均風速 12:最大風速 13:最大風向
                 return {
                     "precip": safe_float(texts[3]) if len(texts) > 3 else None,
                     "rain_1h_max": safe_float(texts[4]) if len(texts) > 4 else None,
                     "temp_avg": safe_float(texts[6]) if len(texts) > 6 else None,
                     "temp_max": safe_float(texts[7]) if len(texts) > 7 else None,
                     "temp_min": safe_float(texts[8]) if len(texts) > 8 else None,
-                    "wind_avg": safe_float(texts[9]) if len(texts) > 9 else None,
-                    "wind_max": safe_float(texts[10]) if len(texts) > 10 else None,
+                    "wind_avg": safe_float(texts[11]) if len(texts) > 11 else None,
+                    "wind_max": safe_float(texts[12]) if len(texts) > 12 else None,
                     "_raw": texts,
                 }
         return None
