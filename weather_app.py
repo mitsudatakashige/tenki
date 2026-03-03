@@ -165,7 +165,6 @@ def find_nearest_station_master(lat, lon):
     return best_name, STATION_MASTER[best_name]
 
 def fetch_weather_for_year(prec_no, block_no, year, month, day):
-    """指定年月の日別データをスクレイピング"""
     url = (f"https://www.data.jma.go.jp/obd/stats/etrn/view/daily_s1.php"
            f"?prec_no={prec_no}&block_no={block_no}&year={year}&month={month}&view=p1")
     try:
@@ -187,38 +186,49 @@ def fetch_weather_for_year(prec_no, block_no, year, month, day):
                 continue
             if row_day == day:
                 texts = [c.get_text(strip=True) for c in cols]
-                # 列: 日,降水量,最大1時間,最大10分,平均気温,最高気温,最低気温,平均風速,最大風速,最大風向,最大瞬間風速...
                 def safe_float(s):
                     try:
-                        s = s.replace("//", "").replace("]", "").replace("[", "").strip()
+                        s = str(s).replace("//", "").replace("]", "").replace("[", "")
+                        s = s.replace("x", "").replace("#", "").replace("--", "")
+                        s = s.replace(" ", "").replace("■", "").strip()
+                        if s in ("", "-", "///", "×"): return None
                         return float(s)
                     except:
                         return None
+                # 気象庁daily_s1 列順:
+                # 0:日 1:降水量合計 2:最大1時間降水量 3:最大10分間降水量
+                # 4:平均気温 5:最高気温 6:最低気温
+                # 7:平均風速 8:最大風速 9:最大風向 10:最大瞬間風速
                 return {
                     "precip": safe_float(texts[1]) if len(texts) > 1 else None,
+                    "rain_1h_max": safe_float(texts[2]) if len(texts) > 2 else None,
                     "temp_avg": safe_float(texts[4]) if len(texts) > 4 else None,
                     "temp_max": safe_float(texts[5]) if len(texts) > 5 else None,
                     "temp_min": safe_float(texts[6]) if len(texts) > 6 else None,
                     "wind_avg": safe_float(texts[7]) if len(texts) > 7 else None,
                     "wind_max": safe_float(texts[8]) if len(texts) > 8 else None,
+                    "_raw": texts,
                 }
         return None
     except Exception as e:
         return None
 
+
 def analyze_data(records):
-    """集計処理"""
     valid = [r for r in records if r]
     n = len(valid)
     if n == 0:
         return None
 
-    # 降雨
-    precips = [r["precip"] for r in valid if r["precip"] is not None]
+    # 降雨（precip=Noneの年はデータなしとして除外）
+    precips = [(r["precip"] if r["precip"] is not None else 0.0) for r in valid]
     rain_days = sum(1 for p in precips if p >= 1.0)
     rain_0 = sum(1 for p in precips if p < 1.0)
     rain_1_10 = sum(1 for p in precips if 1.0 <= p < 10.0)
     rain_10plus = sum(1 for p in precips if p >= 10.0)
+
+    # 1時間最大雨量
+    rain_1h_list = [r["rain_1h_max"] for r in valid if r.get("rain_1h_max") is not None]
 
     # 気温
     temp_avgs = [r["temp_avg"] for r in valid if r["temp_avg"] is not None]
@@ -240,6 +250,10 @@ def analyze_data(records):
         "rain_1_10": rain_1_10,
         "rain_10plus": rain_10plus,
         "precip_n": len(precips),
+        "precips": precips,
+        "rain_1h_list": rain_1h_list,
+        "rain_1h_max": mx(rain_1h_list),
+        "rain_1h_avg": avg(rain_1h_list),
         "temp_avg_mean": avg(temp_avgs),
         "temp_max_mean": avg(temp_maxs),
         "temp_min_mean": avg(temp_mins),
@@ -252,6 +266,7 @@ def analyze_data(records):
         "wind_max_max": mx(wind_maxs),
         "records": valid,
     }
+
 
 def make_precip_chart(result):
     fig, ax = plt.subplots(figsize=(5, 3))
@@ -567,6 +582,28 @@ if st.session_state.get("weather_result"):
         precip_buf = make_precip_chart(result)
         st.image(precip_buf, use_container_width=True)
         st.session_state["precip_buf"] = precip_buf
+
+        # 年別降水量テーブル（デバッグ兼確認用）
+        with st.expander("📋 年別データを確認する"):
+            current_year = datetime.datetime.now().year
+            rows_data = []
+            for i, r in enumerate(result["records"]):
+                yr = current_year - result["n"] + i + 1
+                rows_data.append({
+                    "年": yr,
+                    "降水量(mm)": r["precip"] if r["precip"] is not None else "―",
+                    "最大1時間雨量(mm)": r.get("rain_1h_max") if r.get("rain_1h_max") is not None else "―",
+                    "平均気温(℃)": r["temp_avg"] if r["temp_avg"] is not None else "―",
+                    "最高気温(℃)": r["temp_max"] if r["temp_max"] is not None else "―",
+                    "最低気温(℃)": r["temp_min"] if r["temp_min"] is not None else "―",
+                    "平均風速(m/s)": r["wind_avg"] if r["wind_avg"] is not None else "―",
+                    "最大風速(m/s)": r["wind_max"] if r["wind_max"] is not None else "―",
+                })
+            import pandas as _pd
+            st.dataframe(_pd.DataFrame(rows_data).set_index("年"), use_container_width=True)
+            # 生データ（列確認用）
+            if result["records"] and "_raw" in result["records"][0]:
+                st.caption(f"生データ列（最初の年）: {result['records'][0]['_raw']}")
 
     # ② 気温
     with st.container(border=True):
